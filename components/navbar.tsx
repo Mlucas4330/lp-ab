@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { auth } from '@/auth'
-import { PlanBadge } from '@/components/plan-badge'
+import { AccountMenu } from '@/components/account-menu'
 import { Button } from '@/components/ui/button'
 
 export async function Navbar() {
@@ -22,7 +22,7 @@ export async function Navbar() {
               <Link href="/billing" className="text-sm text-muted-foreground hover:text-foreground">
                 Billing
               </Link>
-              <PlanBadge plan={session.user.plan} />
+              <AccountMenu user={session.user} />
             </>
           ) : (
             <Button asChild size="sm">

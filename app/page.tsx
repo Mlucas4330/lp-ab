@@ -6,23 +6,24 @@ import { SUBSCRIPTION_PLAN } from '@/lib/enums'
 
 export default function HomePage() {
   return (
-    <div className="space-y-16">
-      <section className="space-y-6 py-12 text-center">
+    <div className="animate-fade-up space-y-12">
+      <section className="space-y-5 py-8 text-center">
         <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-          Stop guessing what to A/B test
+          Stop guessing what to{' '}
+          <span className="text-gradient-brand">A/B test</span>
         </h1>
         <p className="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
           Paste your SaaS landing page URL. Get a prioritized list of A/B test hypotheses, each with
           a rationale, predicted impact, and suggested variant copy.
         </p>
-        <Button asChild size="lg">
+        <Button asChild size="lg" className="bg-gradient-brand text-primary-foreground hover:opacity-90">
           <Link href="/dashboard">Analyze your landing page</Link>
         </Button>
       </section>
 
-      <section className="grid gap-6 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-3">
         {SUBSCRIPTION_PLAN.map((plan) => (
-          <Card key={plan}>
+          <Card key={plan} className="transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle className="capitalize">{plan}</CardTitle>
               <CardDescription>

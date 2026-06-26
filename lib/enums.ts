@@ -17,5 +17,8 @@ export type Section = (typeof SECTIONS)[number]
 export const HYPOTHESIS_STATUS = ['pending', 'testing', 'completed', 'skipped'] as const
 export type HypothesisStatus = (typeof HYPOTHESIS_STATUS)[number]
 
+export const VARIANT_STATUS = ['proposed', 'testing', 'winner', 'rejected'] as const
+export type VariantStatus = (typeof VARIANT_STATUS)[number]
+
 export const SUBSCRIPTION_STATUS = ['active', 'canceled', 'past_due'] as const
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]

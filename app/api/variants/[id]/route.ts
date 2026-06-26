@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
-import { analyses, hypotheses } from '@/db/schema'
+import { analyses, hypotheses, variants } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
-import { HYPOTHESIS_STATUS } from '@/lib/enums'
+import { VARIANT_STATUS } from '@/lib/enums'
 
 const BodySchema = z.object({
-  status: z.enum(HYPOTHESIS_STATUS)
+  status: z.enum(VARIANT_STATUS)
 })
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,18 +20,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!parsed.success) return NextResponse.json({ error: 'invalid_status' }, { status: 422 })
 
   const existing = await db
-    .select({ id: hypotheses.id })
-    .from(hypotheses)
+    .select({ id: variants.id })
+    .from(variants)
+    .innerJoin(hypotheses, eq(variants.hypothesisId, hypotheses.id))
     .innerJoin(analyses, eq(hypotheses.analysisId, analyses.id))
-    .where(and(eq(hypotheses.id, id), eq(analyses.userId, user.id)))
+    .where(and(eq(variants.id, id), eq(analyses.userId, user.id)))
 
   if (existing.length === 0) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
   const [updated] = await db
-    .update(hypotheses)
+    .update(variants)
     .set({ status: parsed.data.status })
-    .where(eq(hypotheses.id, id))
+    .where(eq(variants.id, id))
     .returning()
 
-  return NextResponse.json({ hypothesis: updated })
+  return NextResponse.json({ variant: updated })
 }

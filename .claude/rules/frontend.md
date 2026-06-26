@@ -12,7 +12,9 @@
 
 ### Navbar
 
-- Logo, nav links, user avatar dropdown, current plan badge
+- Logo, nav links, and an account menu (`components/account-menu.tsx`)
+- Account menu: native `<details>` dropdown with the avatar/name as the summary; the panel shows
+  name, email, the plan badge, and a `Sign out` button (server action calling `signOut`)
 - Plan badge maps `SUBSCRIPTION_PLAN` enum to a colored pill: free = gray, solo = purple, team = amber
 
 ### Usage gate banner
@@ -38,21 +40,30 @@
 - Skeleton cards shown while `POST /api/analyses` is pending
 - Three-phase progress label: "Scraping page..." -> "Analyzing copy..." -> "Saving results..."
 
-### Hypothesis card
+### Analysis circuit (analysis detail page)
 
-The most important component in the product. Displays:
+The most important experience in the product. The analysis detail page is a guided **circuit**
+that walks the user section by section (one step per hypothesis, ordered by impact desc):
 
-- Section badge (colored pill from `SECTIONS` enum)
-- Problem statement
-- Current copy vs variant copy - side by side layout
-- Impact score + effort score indicators (1-10)
-- Rationale text
-- Status selector: `pending | testing | completed | skipped` (calls `PATCH /api/hypotheses/[id]`)
+- Benchmarked-against line: the competitors (`analyses.competitors`) the variants were grounded
+  in, rendered as links near the top.
+- Progress path: section-colored nodes joined by a gradient line that fills as you advance;
+  nodes are clickable to jump. A final node leads to the summary.
+- Each step: section badge + "Section X of N" + the problem as a headline + impact/effort score
+  pills, then the option cards.
+- Option cards (`OptionCard`): the 3 variants + a "No change" (keep current copy) card. Each
+  variant card shows a "Why:" evidence line citing the competitor pattern it borrows. Selecting
+  one fills it with the section's color (`SECTION_SELECTED_CLASS`) and auto-advances.
+- Selecting persists the choice as that variant's `winner` status (`PATCH /api/variants/[id]`)
+  and resets the previously chosen sibling to `proposed`; "No change" clears any winner. Choices
+  are restored from variant statuses on reload.
+- Summary (`CircuitSummary`): lists each section -> chosen copy with "Copy to clipboard" and
+  "Download .md" (built by `buildPlanMarkdown` in `lib/export.ts`).
 
 ### Section badge
 
 - Colored pill mapped to each `SECTIONS` enum value
-- Used inside hypothesis cards and as a filter chip
+- Used inside the circuit steps and summary
 - Color mapping (consistent across the app):
     - `headline` -> purple
     - `subheadline` -> purple (lighter)
@@ -69,12 +80,6 @@ The most important component in the product. Displays:
 - Visual bar or numbered badge for `impact_score` and `effort_score` (1-10)
 - Impact: higher = warmer color (coral at 8-10, amber at 5-7, gray at 1-4)
 - Effort: lower = better (green at 1-3, amber at 4-6, red at 7-10)
-
-### Sort / filter bar
-
-- Sort: by impact score (default, descending) or effort score
-- Filter: by `SECTIONS` enum value or `HYPOTHESIS_STATUS` enum value
-- Client-side only - no additional API calls
 
 ## Billing components
 

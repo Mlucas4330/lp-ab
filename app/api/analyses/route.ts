@@ -1,9 +1,120 @@
 import { NextResponse } from 'next/server'
+import { desc, eq, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '@/db'
+import { analyses, hypotheses, users, variants } from '@/db/schema'
+import { getCurrentUser } from '@/lib/current-user'
+import { hasReachedFreeLimit } from '@/lib/usage'
+import { FREE_ANALYSES_LIMIT } from '@/lib/constants'
+import { analyzeLandingPage } from '@/lib/analyze'
+import { ScrapeError } from '@/lib/scrape'
 
-export async function POST() {
-  return NextResponse.json({ error: 'not_implemented' }, { status: 501 })
+const BodySchema = z.object({
+  url: z.string().url()
+})
+
+export async function POST(request: Request) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const parsed = BodySchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 422 })
+
+  if (hasReachedFreeLimit(user)) {
+    return NextResponse.json({ error: 'limit_reached' }, { status: 403 })
+  }
+
+  let output
+  try {
+    output = await analyzeLandingPage(parsed.data.url)
+  } catch (error) {
+    if (error instanceof ScrapeError) {
+      return NextResponse.json({ error: 'scrape_failed' }, { status: 502 })
+    }
+    return NextResponse.json({ error: 'analysis_failed' }, { status: 500 })
+  }
+
+  try {
+    const ranked = [...output.hypotheses].sort((a, b) => b.impact_score - a.impact_score)
+
+    const analysis = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(analyses)
+        .values({ userId: user.id, url: parsed.data.url, competitors: output.competitors })
+        .returning()
+
+      const rows = await tx
+        .insert(hypotheses)
+        .values(
+          ranked.map((h) => ({
+            analysisId: created.id,
+            section: h.section,
+            problem: h.problem,
+            currentCopy: h.current_copy,
+            impactScore: h.impact_score,
+            effortScore: h.effort_score,
+            rationale: h.rationale
+          }))
+        )
+        .returning()
+
+      const variantRows = await tx
+        .insert(variants)
+        .values(
+          rows.flatMap((row, i) =>
+            ranked[i].variants.map((variant) => ({
+              hypothesisId: row.id,
+              copy: variant.copy,
+              evidence: variant.evidence
+            }))
+          )
+        )
+        .returning()
+
+      await tx
+        .update(users)
+        .set({ analysesCount: sql`${users.analysesCount} + 1` })
+        .where(eq(users.id, user.id))
+
+      return {
+        ...created,
+        hypotheses: rows.map((row) => ({
+          ...row,
+          variants: variantRows.filter((v) => v.hypothesisId === row.id)
+        }))
+      }
+    })
+
+    return NextResponse.json({ analysis }, { status: 201 })
+  } catch {
+    return NextResponse.json({ error: 'persist_failed' }, { status: 500 })
+  }
 }
 
-export async function GET() {
-  return NextResponse.json({ error: 'not_implemented' }, { status: 501 })
+export async function GET(request: Request) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const page = Math.max(1, Number(searchParams.get('page')) || 1)
+  const limit =
+    user.plan === 'free'
+      ? FREE_ANALYSES_LIMIT
+      : Math.min(50, Math.max(1, Number(searchParams.get('limit')) || 10))
+  const offset = user.plan === 'free' ? 0 : (page - 1) * limit
+
+  const rows = await db
+    .select()
+    .from(analyses)
+    .where(eq(analyses.userId, user.id))
+    .orderBy(desc(analyses.createdAt))
+    .limit(limit)
+    .offset(offset)
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(analyses)
+    .where(eq(analyses.userId, user.id))
+
+  return NextResponse.json({ analyses: rows, total: count, page })
 }

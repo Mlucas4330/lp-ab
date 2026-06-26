@@ -1,4 +1,4 @@
-import type { HypothesisStatus, Section, SubscriptionPlan } from '@/lib/enums'
+import type { HypothesisStatus, Section, SubscriptionPlan, VariantStatus } from '@/lib/enums'
 
 export const FREE_ANALYSES_LIMIT = 3
 
@@ -12,6 +12,18 @@ export const PLAN_SEATS: Record<SubscriptionPlan, number> = {
   free: 1,
   solo: 1,
   team: 3
+}
+
+export const SECTION_LABEL: Record<Section, string> = {
+  headline: 'Headline',
+  subheadline: 'Subheadline',
+  cta: 'CTA',
+  social_proof: 'Social Proof',
+  pricing: 'Pricing',
+  features: 'Features',
+  hero_image: 'Hero Image',
+  navigation: 'Navigation',
+  other: 'Other'
 }
 
 // Color tokens are defined in app/globals.css (@theme). These maps only reference
@@ -28,6 +40,32 @@ export const SECTION_BADGE_CLASS: Record<Section, string> = {
   other: 'bg-neutral/15 text-neutral'
 }
 
+// Filled style for a selected option card (mirrors SECTION_BADGE_CLASS colors).
+export const SECTION_SELECTED_CLASS: Record<Section, string> = {
+  headline: 'border-purple bg-purple/15 ring-2 ring-purple',
+  subheadline: 'border-purple-soft bg-purple/10 ring-2 ring-purple-soft',
+  cta: 'border-coral bg-coral/15 ring-2 ring-coral',
+  social_proof: 'border-teal bg-teal/15 ring-2 ring-teal',
+  pricing: 'border-amber bg-amber/15 ring-2 ring-amber',
+  features: 'border-blue bg-blue/15 ring-2 ring-blue',
+  hero_image: 'border-neutral bg-neutral/15 ring-2 ring-neutral',
+  navigation: 'border-neutral bg-neutral/15 ring-2 ring-neutral',
+  other: 'border-neutral bg-neutral/15 ring-2 ring-neutral'
+}
+
+// Solid section color for circuit nodes.
+export const SECTION_DOT_CLASS: Record<Section, string> = {
+  headline: 'bg-purple',
+  subheadline: 'bg-purple-soft',
+  cta: 'bg-coral',
+  social_proof: 'bg-teal',
+  pricing: 'bg-amber',
+  features: 'bg-blue',
+  hero_image: 'bg-neutral',
+  navigation: 'bg-neutral',
+  other: 'bg-neutral'
+}
+
 export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {
   free: 'bg-neutral/15 text-neutral',
   solo: 'bg-purple/15 text-purple',
@@ -41,14 +79,35 @@ export const HYPOTHESIS_STATUS_LABEL: Record<HypothesisStatus, string> = {
   skipped: 'Skipped'
 }
 
-export function impactScoreClass(score: number): string {
-  if (score >= 8) return 'text-coral'
-  if (score >= 5) return 'text-amber'
-  return 'text-neutral'
+export const HYPOTHESIS_STATUS_BADGE_CLASS: Record<HypothesisStatus, string> = {
+  pending: 'bg-neutral/15 text-neutral',
+  testing: 'bg-amber/15 text-amber',
+  completed: 'bg-green/15 text-green',
+  skipped: 'bg-neutral/10 text-muted-foreground'
 }
 
-export function effortScoreClass(score: number): string {
-  if (score <= 3) return 'text-green'
-  if (score <= 6) return 'text-amber'
-  return 'text-red'
+export const VARIANT_STATUS_LABEL: Record<VariantStatus, string> = {
+  proposed: 'Proposed',
+  testing: 'Testing',
+  winner: 'Winner',
+  rejected: 'Rejected'
+}
+
+export const VARIANT_STATUS_BADGE_CLASS: Record<VariantStatus, string> = {
+  proposed: 'bg-neutral/15 text-neutral',
+  testing: 'bg-amber/15 text-amber',
+  winner: 'bg-green/15 text-green',
+  rejected: 'bg-red/15 text-red'
+}
+
+export function impactScoreBadgeClass(score: number): string {
+  if (score >= 8) return 'bg-coral/15 text-coral'
+  if (score >= 5) return 'bg-amber/15 text-amber'
+  return 'bg-neutral/15 text-neutral'
+}
+
+export function effortScoreBadgeClass(score: number): string {
+  if (score <= 3) return 'bg-green/15 text-green'
+  if (score <= 6) return 'bg-amber/15 text-amber'
+  return 'bg-red/15 text-red'
 }

@@ -24,6 +24,7 @@ analyses
 - id          (uuid, PK)
 - user_id     (FK -> users.id)
 - url         (text)
+- competitors (jsonb, nullable: { name, url }[] benchmarked against)
 - created_at  (timestamp)
 
 hypotheses
@@ -32,11 +33,18 @@ hypotheses
 - section        (enum: SECTIONS)
 - problem        (text)
 - current_copy   (text)
-- variant_copy   (text)
 - impact_score   (int, 1-10)
 - effort_score   (int, 1-10)
 - rationale      (text)
 - status         (enum: HYPOTHESIS_STATUS, default: pending)
+- created_at     (timestamp)
+
+variants
+- id             (uuid, PK)
+- hypothesis_id  (FK -> hypotheses.id)
+- copy           (text)
+- evidence       (text, nullable: competitor pattern this variant borrows/beats)
+- status         (enum: VARIANT_STATUS, default: proposed)
 - created_at     (timestamp)
 ```
 
@@ -45,6 +53,7 @@ hypotheses
 ```
 users       1 -> N  analyses
 analyses    1 -> N  hypotheses
+hypotheses  1 -> N  variants
 users       1 -> 1  subscriptions
 ```
 
@@ -125,6 +134,20 @@ Request:
 
 Response: updated hypothesis row.
 
+### Variants
+
+`PATCH /api/variants/[id]`
+Updates `status` only. Validates against `VARIANT_STATUS` enum. Ownership enforced by joining
+`variants -> hypotheses -> analyses` on the requesting user.
+
+Request:
+
+```json
+{ "status": "winner" }
+```
+
+Response: updated variant row.
+
 ### Billing
 
 `POST /api/billing/checkout`
@@ -200,20 +223,34 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { z } from 'zod'
 import { SECTIONS } from '@/lib/enums'
 
+const VariantSchema = z.object({ copy: z.string(), evidence: z.string() })
+
 const HypothesisSchema = z.object({
     section: z.enum(SECTIONS),
     problem: z.string(),
     current_copy: z.string(),
-    variant_copy: z.string(),
+    variants: z.array(VariantSchema).length(3),
     impact_score: z.number().int().min(1).max(10),
     effort_score: z.number().int().min(1).max(10),
     rationale: z.string()
 })
 
+const CompetitorSchema = z.object({ name: z.string(), url: z.string() })
+
 const AnalysisOutputSchema = z.object({
+    competitors: z.array(CompetitorSchema).max(4),
     hypotheses: z.array(HypothesisSchema).min(5).max(8)
 })
 ```
+
+### 2b. Competitor research (web search)
+
+Before structured generation, run a web-search step with the official Anthropic SDK
+(`@anthropic-ai/sdk`, tool `web_search_20250305`) using `COMPETITOR_RESEARCH_PROMPT` to find 2-3
+real competitor landing pages and summarize their positioning into a brief. The brief is passed
+into `generateObject` so variants are grounded in competitors, and each variant carries an
+`evidence` line naming the competitor pattern it borrows. Degrades gracefully to an empty brief
+(no `ANTHROPIC_API_KEY` / failure) so generation still succeeds. Skipped when `E2E_FIXTURES=1`.
 
 ### 3. Call
 
@@ -222,15 +259,17 @@ const result = await generateObject({
     model: anthropic('claude-sonnet-4-6'),
     schema: AnalysisOutputSchema,
     system: SYSTEM_PROMPT,
-    prompt: `Analyze this landing page:\n\n${cleanedPageContent}`
+    prompt: `Landing page copy:\n\n${cleanedPageContent}\n\nCompetitive research brief:\n\n${brief}`
 })
 
-const { hypotheses } = result.object
+const { competitors, hypotheses } = result.object
 ```
 
 ### 4. System prompt (core IP - iterate carefully)
 
-Focus on: specificity of claims, CTA strength, social proof quality, value proposition clarity, friction reduction. Return 5-8 hypotheses ranked by impact score descending.
+Focus on: grounding every hypothesis/variant in the competitor brief, specificity of claims, CTA
+strength, social proof quality, value proposition clarity, friction reduction. Return 5-8
+hypotheses ranked by impact score descending, each with 3 evidence-bearing variants.
 
 ---
 

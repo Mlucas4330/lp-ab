@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/current-user'
+import { usageFor } from '@/lib/usage'
 
 export async function GET() {
-  return NextResponse.json({ error: 'not_implemented' }, { status: 501 })
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  return NextResponse.json(usageFor(user))
 }
